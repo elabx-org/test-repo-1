@@ -28,26 +28,26 @@ jobs:
         run: |
           API_URL="https://api.github.com/repos/${{ github.repository }}/actions/variables"
           
-          # Use jq to properly format and escape the JSON value
-          RUNNER_CONFIG='{
+          # Create compact single-line JSON
+          RUNNER_CONFIG=$(echo '{
             "group": "${{ inputs.group_name }}", 
             "labels": ["self-hosted", "${{ inputs.environment }}", "linuxdefender"]
-          }'
+          }' | jq -c '.')
           
           echo "Creating RUNNER_CONFIG with value:"
-          echo "$RUNNER_CONFIG" | jq '.'
+          echo "$RUNNER_CONFIG"
           
           echo "Sending request to GitHub API..."
-          echo '{"name": "RUNNER_CONFIG", "value": '"$(echo "$RUNNER_CONFIG" | jq -R -s '.')"'}' | \
+          echo '{"name":"RUNNER_CONFIG","value":'"$(echo "$RUNNER_CONFIG" | jq -R -s '.')"'}' | \
           curl -s -X POST "$API_URL" \
             -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "Accept: application/vnd.github.v3+json" \
-            --data-binary @- | jq '.'
+            --data-binary @-
 
           echo "Verifying RUNNER_CONFIG value..."
           curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
             -H "Accept: application/vnd.github.v3+json" \
-            "$API_URL/RUNNER_CONFIG" | jq '.'
+            "$API_URL/RUNNER_CONFIG" | jq -r '.value'
 
       - name: Get All Variables (Debug)
         env:
