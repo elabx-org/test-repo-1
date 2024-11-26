@@ -1,0 +1,61 @@
+# .github/workflows/test-runner-config.yml
+name: Test Runner Config Setup
+
+on:
+  workflow_dispatch:
+    inputs:
+      group_name:
+        description: 'Runner group name'
+        required: false
+        default: 'replacesvcs'
+        type: string
+      environment:
+        description: 'Environment label'
+        required: false
+        default: 'dev'
+        type: string
+
+permissions:
+  actions: write
+
+jobs:
+  test-runner-config:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set Runner Configuration
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          API_URL="https://api.github.com/repos/${{ github.repository }}/actions/variables"
+          
+          # Use jq to properly format and escape the JSON value
+          RUNNER_CONFIG='{
+            "group": "${{ inputs.group_name }}", 
+            "labels": ["self-hosted", "${{ inputs.environment }}", "linuxdefender"]
+          }'
+          
+          echo "Creating RUNNER_CONFIG with value:"
+          echo "$RUNNER_CONFIG" | jq '.'
+          
+          echo "Sending request to GitHub API..."
+          echo '{"name": "RUNNER_CONFIG", "value": '"$(echo "$RUNNER_CONFIG" | jq -R -s '.')"'}' | \
+          curl -s -X POST "$API_URL" \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            --data-binary @- | jq '.'
+
+          echo "Verifying RUNNER_CONFIG value..."
+          curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "$API_URL/RUNNER_CONFIG" | jq '.'
+
+      - name: Get All Variables (Debug)
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          API_URL="https://api.github.com/repos/${{ github.repository }}/actions/variables"
+          
+          echo "Listing all repository variables:"
+          curl -s -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "$API_URL" | jq '.'
